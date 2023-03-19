@@ -33,15 +33,17 @@ class entry:
             self.extra = None
         return message.strip()
     
-class sorted:
+class sorted_event:
     def __init__(self, time, source, message, extra):
         self.timestamps = [time]
         self.source = source
         self.message = message
         self.extra = extra
+        self.occurrences = 1
 
     def add_time(self, newtime):
         self.timestamps.append(newtime)
+        self.occurrences = len(self.timestamps)
     
 def count_data(data):
     counted = []
@@ -55,8 +57,8 @@ def count_data(data):
                 if source == j.source and message == j.message and extra == j.extra:
                     j.add_time(time)
                     break
-            else: counted.append(sorted(time, source, message, extra))
-        else: counted.append(sorted(time, source, message, extra))
+            else: counted.append(sorted_event(time, source, message, extra))
+        else: counted.append(sorted_event(time, source, message, extra))
     return counted
 
     
@@ -72,19 +74,29 @@ def open_file(filename):
         data = file.readlines()
     return data
 
+#Added only for testing
 def write_object_to_file(data):
     with open('local/output', 'a') as file:
-        for i in data:
-            file.write(i.source + ' ' + i.message + (' ' + i.extra if i.extra else '') + '\n')
-            for j in i.timestamps:
-                file.write(j + '\n')
-            file.write('\n')
+        for i in sorted(data, key=lambda x: x.occurrences, reverse=True):
+            file.write(str(i.occurrences) + '\n')
+            file.write(i.source + ' ' + i.message + (' ' + i.extra if i.extra else '') + '\n\n')
+
+def detect_log_type(arguement):
+    valid_types = ['usgmessages', 'uswmessages']
+    if arguement.lower() in valid_types:
+        return arguement.lower()
+    else:
+        raise InvalidLogFileType(f"Log file type has to match on of the following: {', '.join(valid_types)}")
+
+#Custom exception 
+class InvalidLogFileType(Exception):
+    pass
 
 def main():
     global file_type
-    #file_type = sys.argv[1]
-    #filename = sys.argv[2]
-    filename = 'local/messages'
+    file_type = detect_log_type(sys.argv[1])
+    filename = sys.argv[2]
+    #filename = 'local/messages'
     file = open_file(filename)
     raw_data = send_to_class(file)
     data = count_data(raw_data)
