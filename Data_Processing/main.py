@@ -1,5 +1,6 @@
 import sys
 
+#Class that represents a log entry
 class entry:
     def __init__(self, line):
         self.line = line
@@ -24,6 +25,7 @@ class entry:
         source, self.line = self.line.split(':', 1)
         return source.strip()
     
+    #Extract message of log entry
     def extract_message(self):
         try: 
             message, self.line = self.line.split('  ', 1)
@@ -32,7 +34,8 @@ class entry:
             message = self.line
             self.extra = None
         return message.strip()
-    
+
+#Class that represents a counted log entry 
 class sorted_event:
     def __init__(self, time, source, message, extra):
         self.timestamps = [time]
@@ -61,26 +64,20 @@ def count_data(data):
         else: counted.append(sorted_event(time, source, message, extra))
     return counted
 
-    
-
+#Function that sends each line to the class
 def send_to_class(file):
     data = []
     for line in file:
         data.append(entry(line))
     return data
 
+#Function that opens the file and returns the data
 def open_file(filename):
     with open(filename) as file:
         data = file.readlines()
     return data
 
-#Added only for testing
-def write_object_to_file(data):
-    with open('local/output', 'a') as file:
-        for i in sorted(data, key=lambda x: x.occurrences, reverse=True):
-            file.write(str(i.occurrences) + '\n')
-            file.write(i.source + ' ' + i.message + (' ' + i.extra if i.extra else '') + '\n\n')
-
+#Function that checks if file type input is valid
 def detect_log_type(arguement):
     valid_types = ['usgmessages', 'uswmessages']
     if arguement.lower() in valid_types:
@@ -92,6 +89,7 @@ def detect_log_type(arguement):
 class InvalidLogFileType(Exception):
     pass
 
+#Main function
 def main():
     global file_type
     file_type = detect_log_type(sys.argv[1])
@@ -100,8 +98,6 @@ def main():
     file = open_file(filename)
     raw_data = send_to_class(file)
     data = count_data(raw_data)
-    write_object_to_file(data)
     
-
 if __name__ == '__main__':
     main()
