@@ -1,4 +1,6 @@
 import sys
+import csv
+from datetime import datetime
 
 #Class that represents a log entry
 class entry:
@@ -84,6 +86,21 @@ def detect_log_type(arguement):
         return arguement.lower()
     else:
         raise InvalidLogFileType(f"Log file type has to match on of the following: {', '.join(valid_types)}")
+    
+#Function that returns a short string with the date and time
+def get_date_time():
+    now = datetime.now()
+    date_time = now.strftime("%d-%m-%Y_%H-%M-%S")
+    return date_time
+    
+#Function that takes a list of objects and writes them to a csv file
+def write_to_csv(data, filetype):
+    with open(f'{filetype}_{get_date_time()}.csv', 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        writer.writerow(['Timestamp', 'Source', 'Message', 'Extra', 'Occurrences'])
+        for i in data:
+            writer.writerow([i.timestamps, i.source, i.message, i.extra, i.occurrences])
+    
 
 #Custom exception 
 class InvalidLogFileType(Exception):
@@ -98,6 +115,7 @@ def main():
     file = open_file(filename)
     raw_data = send_to_class(file)
     data = count_data(raw_data)
+    write_to_csv(data, file_type)
     
 if __name__ == '__main__':
     main()
