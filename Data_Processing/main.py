@@ -1,6 +1,7 @@
 import sys
 import csv
 from datetime import datetime
+import re
 
 #Class that represents a log entry
 class entry:
@@ -45,10 +46,19 @@ class sorted_event:
         self.message = message
         self.extra = extra
         self.occurrences = 1
+        self.ip = self.extract_ip(message)
 
     def add_time(self, newtime):
         self.timestamps.append(newtime)
         self.occurrences = len(self.timestamps)
+
+    def extract_ip(self, message):
+        try:
+            ip = re.findall(r'[0-9]+(?:\.[0-9]+){3}', message)
+            if len(ip) == 1: ip = ip[0]
+        except AttributeError:
+            ip = None
+        return ip
     
 def count_data(data):
     counted = []
@@ -97,9 +107,9 @@ def get_date_time():
 def write_to_csv(data, filetype):
     with open(f'{filetype}_{get_date_time()}.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(['Timestamp', 'Source', 'Message', 'Extra', 'Occurrences'])
+        writer.writerow(['Timestamp', 'Source', 'Message', 'Extra', 'Occurrences', 'IP Address'])
         for i in data:
-            writer.writerow([i.timestamps, i.source, i.message, i.extra, i.occurrences])
+            writer.writerow([i.timestamps, i.source, i.message, i.extra, i.occurrences, i.ip])
     
 
 #Custom exception 
