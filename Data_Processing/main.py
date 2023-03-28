@@ -53,11 +53,7 @@ class sorted_event:
         self.occurrences = len(self.timestamps)
 
     def extract_ip(self, message):
-        try:
-            ip = re.findall(r'[0-9]+(?:\.[0-9]+){3}', message)
-            if len(ip) == 1: ip = ip[0]
-        except AttributeError:
-            ip = None
+        ip = re.findall(r'[0-9]{1,3}(\.[0-9]{1,3}){3}', message)
         return ip
     
 def count_data(data):
