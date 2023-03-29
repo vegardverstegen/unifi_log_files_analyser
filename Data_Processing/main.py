@@ -1,6 +1,7 @@
 import sys
 import csv
 from datetime import datetime
+import re
 
 #Class that represents a log entry
 class entry:
@@ -37,7 +38,7 @@ class entry:
             self.extra = None
         return message.strip()
 
-#Class that represents a counted log entry 
+#Class that represents a counted log entry with a list of timestamps 
 class sorted_event:
     def __init__(self, time, source, message, extra):
         self.timestamps = [time]
@@ -45,11 +46,20 @@ class sorted_event:
         self.message = message
         self.extra = extra
         self.occurrences = 1
+        self.ip = self.extract_ip()
 
+    #Function that adds a timestamp to the list of timestamps
     def add_time(self, newtime):
         self.timestamps.append(newtime)
         self.occurrences = len(self.timestamps)
-    
+
+    #Function that extracts all IP addresses from the message field
+    def extract_ip(self):
+        ip_regex = r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+        ip = re.findall(ip_regex, self.message)
+        return ip
+
+#Function that counts the number of occurrences of each log entry and returns a list of objects
 def count_data(data):
     counted = []
     for i in data:
@@ -97,9 +107,9 @@ def get_date_time():
 def write_to_csv(data, filetype):
     with open(f'{filetype}_{get_date_time()}.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(['Timestamp', 'Source', 'Message', 'Extra', 'Occurrences'])
+        writer.writerow(['Timestamp', 'Source', 'Message', 'Extra', 'Occurrences', 'IP addresses'])
         for i in data:
-            writer.writerow([i.timestamps, i.source, i.message, i.extra, i.occurrences])
+            writer.writerow([i.timestamps, i.source, i.message, i.extra, i.occurrences, i.ip])
     
 
 #Custom exception 
