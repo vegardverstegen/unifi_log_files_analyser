@@ -2,6 +2,7 @@ import sys
 import csv
 from datetime import datetime
 import re
+import os
 
 #Class that represents a log entry
 class entry:
@@ -53,7 +54,7 @@ class sorted_event:
         self.occurrences = len(self.timestamps)
 
     def extract_ip(self, message):
-        ip = re.findall(r'[0-9]{1,3}(\.[0-9]{1,3}){3}', message)
+        ip = re.findall(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', message)
         return ip
     
 def count_data(data):
@@ -98,10 +99,53 @@ def get_date_time():
     now = datetime.now()
     date_time = now.strftime("%d-%m-%Y_%H-%M-%S")
     return date_time
+
+def extract_execute_statement(data):
+    #Loop through Message and IP addresses columns
+    corrolation = {'device_name': [], 'ip': [], 'mac': []}
+    for index, row in enumerate(data):
+        #Check for beginning of execute statement
+        if 'argv[0]' in row.message:
+            #Check for device name
+            row = data[index+2]
+            if 'argv[2]' in row.message:
+                device_name = row.message.split('=')[1].strip()
+                #Check for IP address
+                row = data[index+3]
+                if 'argv[3]' in row.message:
+                    ip = row.message.split('=')[1].strip()
+                    #Check for MAC address
+                    row = data[index+4]
+                    if 'argv[4]' in row.message:
+                        mac = row.message.split('=')[1].strip()
+                        #Does not add information if MAC address exists
+                        if mac in corrolation['mac']: continue
+                    else: mac = ''
+                    #Add all values to dictionary
+                    corrolation['device_name'].append(device_name)
+                    corrolation['ip'].append(ip)
+                    corrolation['mac'].append(mac)
+    return corrolation
+
+def create_output_folder(filetype):
+    date_time = get_date_time()
+    output_folder = f'{filetype}_processed_{date_time}'
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    print(output_folder)
+    return output_folder
+
+#Function that takes a dictionary and writes it to a csv file
+def dict_to_csv(data, destination):
+    with open(f'{destination}/device_info.csv', 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile, delimiter=',', quoting=csv.QUOTE_MINIMAL)
+        writer.writerow(['Device Name', 'IP Address', 'MAC Address'])
+        for i, x in enumerate(data['device_name']):
+            writer.writerow([x, data['ip'][i], data['mac'][i]])
     
 #Function that takes a list of objects and writes them to a csv file
-def write_to_csv(data, filetype):
-    with open(f'{filetype}_{get_date_time()}.csv', 'w', newline='') as csvfile:
+def write_to_csv(data, filetype, destination):
+    with open(f'{destination}/{filetype}.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
         writer.writerow(['Timestamp', 'Source', 'Message', 'Extra', 'Occurrences', 'IP Address'])
         for i in data:
@@ -115,13 +159,22 @@ class InvalidLogFileType(Exception):
 #Main function
 def main():
     global file_type
-    file_type = detect_log_type(sys.argv[1])
-    filename = sys.argv[2]
-    #filename = 'local/messages'
+    #file_type = detect_log_type(sys.argv[1])
+    #filename = sys.argv[2]
+    file_type = 'usgmessages'
+    filename = 'local/messages'
     file = open_file(filename)
+
+    #Set output destination
+    folder = create_output_folder(file_type)
+
     raw_data = send_to_class(file)
+    #Save device info to csv file
+    device_info = extract_execute_statement(raw_data)
+    dict_to_csv(device_info, folder)
+
     data = count_data(raw_data)
-    write_to_csv(data, file_type)
+    write_to_csv(data, file_type, folder)
     
 if __name__ == '__main__':
     main()
