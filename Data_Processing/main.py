@@ -159,10 +159,8 @@ class InvalidLogFileType(Exception):
 #Main function
 def main():
     global file_type
-    #file_type = detect_log_type(sys.argv[1])
-    #filename = sys.argv[2]
-    file_type = 'usgmessages'
-    filename = 'local/messages'
+    file_type = detect_log_type(sys.argv[1])
+    filename = sys.argv[2]
     file = open_file(filename)
 
     #Set output destination
