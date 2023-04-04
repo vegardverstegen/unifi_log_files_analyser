@@ -17,11 +17,11 @@ def extract_file_type(path):
     return file_type
 
 def string_to_list(string):
-    lst = string.strip('[]').split(', ')
+    lst = string.strip('[]').replace('\'', '').split(', ')
     return lst
 
 #Takes two datetimes in the format 'dd-mm HH:MM:SS' and returns the times in the order 'earliest time', 'latest time'
-def compare_times(time1, time2):
+def compare_times(time1: str, time2: str) -> tuple:
     d1, m1, H1, M1, S1 = re.split(' |:|-', time1)
     d2, m2, H2, M2, S2 = re.split(' |:|-', time2)
     #Add buffer for new year
@@ -41,12 +41,13 @@ def compare_times(time1, time2):
     #Times are equal
     return time1, time2
 
-def find_time_span(lst):
+def find_time_span(lst: list) -> tuple:
     earliest = lst[0]
     latest = lst[0]
     for time in lst:
         earliest, tmp = compare_times(earliest, time)
         tmp, latest = compare_times(time, latest)
+
     return earliest, latest
 
 #Function that makes a bar chart from a pandas dataframe with matplotlib
@@ -70,7 +71,7 @@ def common_ip(dataframe):
     for _, row in dataframe.iterrows():
         IPs = string_to_list(row['IP Address'])
         occurrences = row['Occurrences']
-        times = string_to_list(row['Time'])
+        times = string_to_list(row['Timestamp'])
         first_time, last_time = find_time_span(times)
         #Loop through IP addresses on each row
         for i in IPs:
@@ -80,14 +81,17 @@ def common_ip(dataframe):
                 if i in ip_counter['ip'].values:
                     #If it is, add the occurrences, first_time and last_time to the existing row
                     ip_counter.loc[ip_counter['ip'] == i, 'occurrences'] += occurrences
-                    ip_counter.loc[ip_counter['ip'] == i, 'first_time'] = compare_times(first_time, ip_counter.loc[ip_counter['ip'] == i, 'first_time'])[0]
-                    ip_counter.loc[ip_counter['ip'] == i, 'last_time'] = compare_times(last_time, ip_counter.loc[ip_counter['ip'] == i, 'last_time'])[1]
+                    #Extract and compare times, and update the dataframe
+                    time = str(ip_counter.loc[ip_counter['ip'] == i, 'first_time'].values).strip('[]').replace('\'', '')
+                    ip_counter.loc[ip_counter['ip'] == i, 'first_time'] = compare_times(first_time, time)[0]
+                    time = str(ip_counter.loc[ip_counter['ip'] == i, 'last_time'].values).strip('[]').replace('\'', '')
+                    ip_counter.loc[ip_counter['ip'] == i, 'last_time'] = compare_times(last_time, time)[1]
+                    
                 else:
                     #If it isn't, add a new row
-                    ip_counter = pandas.concat([ip_counter, pandas.DataFrame([[i, occurrences]], columns=['ip', 'occurrences'])], ignore_index=True)
-                    ip_counter.loc[ip_counter['ip'] == i, 'first_time'] = first_time
-                    ip_counter.loc[ip_counter['ip'] == i, 'last_time'] = last_time
+                    ip_counter = pandas.concat([ip_counter, pandas.DataFrame([[i, occurrences, first_time, last_time]], columns=['ip', 'occurrences', 'first_time', 'last_time'])], ignore_index=True)
                     
+                
     #Sort dataframe by occurrences
     ip_counter = ip_counter.sort_values(by=['occurrences'], ascending=False)
     return ip_counter
@@ -129,19 +133,21 @@ def create_pdf(device_info, ip_counter):
         pdf.cell(0, 10, 'Most common IP addresses', 0, 1, 'L')
         #Add image
         pdf.image('local\\visualisations\\most_common_ip.png', x=10, y=pdf.get_y(), w=180)
+        pdf.cell(0, 150, '', 0, 1, 'C')
         ##Add table
         pdf.set_font('Arial', 'B', 12)
-        pdf.cell(60, 10, 'IP address', 1, 0, 'L')
-        pdf.cell(60, 10, 'Occurrences', 1, 0, 'L')
-        pdf.cell(60, 10, 'First time', 1, 0, 'L')
-        pdf.cell(60, 10, 'Last time', 1, 1, 'L')
+        cell_width = 45
+        pdf.cell(cell_width, 10, 'IP address', 1, 0, 'L')
+        pdf.cell(cell_width, 10, 'Occurrences', 1, 0, 'L')
+        pdf.cell(cell_width, 10, 'First time', 1, 0, 'L')
+        pdf.cell(cell_width, 10, 'Last time', 1, 1, 'L')
         #Add data
         pdf.set_font('Arial', '', 12)
         for _, row in ip_counter.iterrows():
-            pdf.cell(60, 10, row[0], 1, 0, 'L')
-            pdf.cell(60, 10, str(row[1]), 1, 0, 'L')
-            pdf.cell(60, 10, row[2], 1, 0, 'L')
-            pdf.cell(60, 10, row[3], 1, 1, 'L')
+            pdf.cell(cell_width, 10, row[0], 1, 0, 'L')
+            pdf.cell(cell_width, 10, str(row[1]), 1, 0, 'L')
+            pdf.cell(cell_width, 10, row[2], 1, 0, 'L')
+            pdf.cell(cell_width, 10, row[3], 1, 1, 'L')
 
 
       
@@ -155,7 +161,7 @@ def create_pdf(device_info, ip_counter):
 
 def main():
     #path = sys.argv[1]
-    path = 'usgmessages_processed_03-04-2023_13-45-40'
+    path = 'local\\usgmessages_processed_02-04-2023_20-57-32'
     device_info = import_csv(f'{path}\\device_info.csv')
     file_type = extract_file_type(path)
     df = import_csv(f'{path}\\{file_type}.csv')
