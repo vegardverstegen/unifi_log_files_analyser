@@ -393,8 +393,7 @@ def create_hash(folder):
 def main():
     print('Importing data')
     #Get variables
-    #path = sys.argv[1]
-    path = 'local\\usg_processed'
+    path = sys.argv[1]
 
     #import data
     file_type = extract_file_type(path)
