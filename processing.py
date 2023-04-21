@@ -26,7 +26,11 @@ class entry:
     
     #Extract source of log entry
     def extract_source(self):
-        source, self.line = self.line.split(':', 1)
+        try:
+            source, self.line = self.line.split(':', 1)
+        except ValueError:
+            self.line = self.line[1:].split(' ', 2)[2]
+            return None
         return source.strip()
     
     #Extract message of log entry
@@ -86,9 +90,23 @@ def open_file(filename):
         data = file.readlines()
     return data
 
+#Function that checks for all files in a folder and loads them
+def open_files(folder):
+    messages = vpn = None
+    for filename in os.listdir(folder):
+        if filename == 'messages':
+            messages = open_file(f'{folder}/{filename}')
+            print('Loaded messages')
+        if filename == 'vpn':
+            vpn = open_file(f'{folder}/{filename}')
+            print('Loaded vpn')
+    if not messages: print('No messages file found')
+    if not vpn: print('No vpn file found')
+    return messages, vpn
+
 #Function that checks if file type input is valid
 def detect_log_type(arguement):
-    valid_types = ['usgmessages', 'uswmessages']
+    valid_types = ['usg', 'usw']
     if arguement.lower() in valid_types:
         return arguement.lower()
     else:
@@ -105,7 +123,7 @@ def extract_execute_statement(data):
     corrolation = {'device_name': [], 'ip': [], 'mac': []}
     for index, row in enumerate(data):
         #Check for beginning of execute statement
-        if 'argv[0]' in row.message:
+        if 'argv[0]' in row.message and 'dhcpd' in row.source:
             #Check for device name
             row = data[index+2]
             if 'argv[2]' in row.message:
@@ -130,9 +148,12 @@ def extract_execute_statement(data):
 def create_output_folder(filetype):
     date_time = get_date_time()
     output_folder = f'{filetype}_processed_{date_time}'
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-    print(output_folder)
+    num = 1
+    while os.path.exists(output_folder):
+        output_folder = f'{output_folder}_{num}'
+        num += 1
+    os.makedirs(output_folder)
+    print(f'Contents are saved to: {output_folder}')
     return output_folder
 
 #Function that takes a dictionary and writes it to a csv file
@@ -160,19 +181,29 @@ class InvalidLogFileType(Exception):
 def main():
     global file_type
     file_type = detect_log_type(sys.argv[1])
-    filename = sys.argv[2]
-    file = open_file(filename)
+    folder = sys.argv[2]
+    messages, vpn = open_files(folder)
 
+    #Process messages file
+    if messages:
+        raw_data = send_to_class(messages)
+        data = count_data(raw_data)
+
+    #Process vpn file
+    if vpn:
+        vpn_raw_data = send_to_class(vpn)
+        vpn = count_data(vpn_raw_data)
+    
     #Set output destination
     folder = create_output_folder(file_type)
 
-    raw_data = send_to_class(file)
     #Save device info to csv file
     device_info = extract_execute_statement(raw_data)
     dict_to_csv(device_info, folder)
 
-    data = count_data(raw_data)
-    write_to_csv(data, file_type, folder)
+    #Save data to csv file
+    if messages: write_to_csv(data, 'messages', folder)
+    if vpn: write_to_csv(vpn, 'vpn', folder)
     
 if __name__ == '__main__':
     main()
