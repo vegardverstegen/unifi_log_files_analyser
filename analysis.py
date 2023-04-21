@@ -162,10 +162,12 @@ def most_common_ip_visual(ip_counter, device_info, IPs_in_chart, output_folder):
 
     return known_total, known_perHour
 
+#Function that uses an API to get the coordinates of the IP addresses
 def get_coordinates(vpn, apiKey):
     locations = []
     for _, row in vpn.iterrows():
         ips = row['IP Address']
+        #Only search for IP addresses that are initiating a VPN connection
         if 'is initiating a Main Mode IKE_SA' in row['Message'] or 'establishing CHILD_SA peer' in row['Message']:
             for ip in string_to_list(ips):
                 response = requests.get(f'https://api.ipgeolocation.io/ipgeo?apiKey={apiKey}&ip={ip}').json()
@@ -276,7 +278,7 @@ def create_pdf(df, device_info, ip_counter, known_total_max, known_perHour_max, 
         #Add data
         for _, row in commmon.iterrows():
             pdf.set_font('Helvetica', 'B', 12)
-            pdf.cell(0, 10, f'{row[1]}: {row[2]}', new_x='LMARGIN', new_y='NEXT')
+            pdf.multi_cell(0, 10, f'{row[1]}: {row[2]}', new_x='LMARGIN', new_y='NEXT')
             pdf.set_font('Helvetica', '', 12)
             pdf.cell(0, 10, f'Occurrences: {row[4]}', new_x='LMARGIN', new_y='NEXT')
             first, last = find_time_span(string_to_list(row[0]))
@@ -293,7 +295,7 @@ def create_pdf(df, device_info, ip_counter, known_total_max, known_perHour_max, 
         #Add data
         for _, row in least_common.iterrows():
             pdf.set_font('Helvetica', 'B', 12)
-            pdf.cell(0, 10, f'{row[1]}: {row[2]}', new_x='LMARGIN', new_y='NEXT')
+            pdf.multi_cell(0, 10, f'{row[1]}: {row[2]}', new_x='LMARGIN', new_y='NEXT')
             pdf.set_font('Helvetica', '', 12)
             pdf.cell(0, 10, f'Occurrences: {row[4]}', new_x='LMARGIN', new_y='NEXT')
             first, last = find_time_span(string_to_list(row[0]))
@@ -302,7 +304,6 @@ def create_pdf(df, device_info, ip_counter, known_total_max, known_perHour_max, 
             pdf.cell(0, 10, '', new_x='LMARGIN', new_y='NEXT')
 
     def add_common_ip():
-        pdf.add_page()
         pdf.set_font('Helvetica', 'B', 18)
         pdf.cell(0, 10, 'Most common IP addresses', new_x='LMARGIN', new_y='NEXT')
     
@@ -312,6 +313,7 @@ def create_pdf(df, device_info, ip_counter, known_total_max, known_perHour_max, 
         pdf.image(f'{output_folder}\\visualisations\\most_common_ip.png', x=10, y=pdf.get_y(), w=180)
         pdf.cell(0, 135, '', new_x='LMARGIN', new_y='NEXT')
         add_known_ip(known_total_max)
+        pdf.add_page()
 
         #Per Hour heighest
         #Add image
@@ -341,7 +343,7 @@ def create_pdf(df, device_info, ip_counter, known_total_max, known_perHour_max, 
     add_common_messages(df)
     add_least_common_messages(df)
     add_common_ip()
-    add_anomalies(anomalies)
+    if anomalies: add_anomalies(anomalies)
     if VPNcoordinates is not None: add_vpn(VPNcoordinates)
     #Output pdf
     pdf.output(f'{output_folder}\\{output_folder}.pdf')
